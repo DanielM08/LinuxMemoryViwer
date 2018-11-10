@@ -2,8 +2,8 @@ import os
 import subprocess
 import dialog_error
 import matplotlib.pyplot as plt
-import matplotlib.backends.tkagg as tkagg
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
 
 # Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
@@ -68,7 +68,7 @@ class Canvas(ttk.Frame, object):
 
         self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
         self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.listbox_pid = tk.Listbox(self.page_faults_frame)
+        self.listbox_pid = tk.Listbox(self.page_faults_frame,height=15)
         self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
         self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
@@ -98,7 +98,7 @@ class Canvas(ttk.Frame, object):
         self.master.bind('<Escape>', self.exit)
 
         self.insert2listbox()
-        # self.draw_figure()
+        self.draw_figure()
 
     def insert2listbox(self):
         for row in self.df['pid']:
@@ -111,35 +111,33 @@ class Canvas(ttk.Frame, object):
             self.listbox_pid.insert(tk.END,row)
 
     def draw_figure(self,loc=(20, 20)):
-        canvas = tk.Canvas(self.mem_vals_frame)
-        mem_vals_df = memory_values()
-        mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
-        mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
-        mem_vals_df
-        figure = plt.figure()
-        ax = mem_vals_df.plot(y=0,kind='pie',fig=figure)
-        ax.plot()
-        fca = FigureCanvasAgg(figure)
-        fca.draw()
-        figure_x, figure_y, figure_w, figure_h = figure.bbox.bounds
-        figure_w, figure_h = int(figure_w), int(figure_h)
-    
-        photo = tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
+        # mem_vals_df = memory_values()
+        # mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
+        # mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
+        mem_vals_df = page_faults()
 
-        canvas.create_image(loc[0] + figure_w/2, loc[1] + figure_h/2, image=photo)
+        figure = plt.figure(figsize=(3,3))
+        mem_vals_df.plot()
+        
+        canvas = FigureCanvasTkAgg(figure,master=self.mem_vals_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        
+        toolbar = NavigationToolbar2TkAgg(canvas, self.mem_vals_frame)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        # Unfortunately, there's no accessor for the pointer to the native renderer
-        tkagg.blit(photo, fca.get_renderer()._renderer, colormode=2)
 
     def onselect(self,evt):
         # Note here that Tkinter passes an event object to onselect()
         w = evt.widget
         index = int(w.curselection()[0])
         value = w.get(index)
-        self.min_flt_frame.config(text=self.df['min_flt'].loc[index])
-        self.maj_flt_frame.config(text=self.df['maj_flt'].loc[index])
+        self.min_flt_frame.config(text=self.df['min_flt'].iloc[index])
+        self.maj_flt_frame.config(text=self.df['maj_flt'].iloc[index])
 
     def exit(self,*args):
+        self.master.quit()
         self.master.destroy()
 
 def main():
