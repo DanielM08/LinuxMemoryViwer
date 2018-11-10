@@ -1,17 +1,19 @@
 import os
+import sys
 import subprocess
 import dialog_error
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
 import numpy as np
 
 # Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as NavigationToolbar2TkAgg
     import tkinter as tk
     from tkinter import ttk
 except ImportError:
     try:
+        from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
         import Tkinter as tk
         import ttk
     except ImportError:
@@ -32,7 +34,10 @@ def memory_values():
     return pd.DataFrame().from_dict(meminfo)
 
 def page_faults():
-    pagesF = subprocess.check_output("ps h -e -o pid,min_flt,maj_flt", shell = True).split('\n')
+    try:
+        pagesF = subprocess.check_output("ps h -e -o pid,min_flt,maj_flt", shell = True).split('\n')
+    except:
+        pagesF = str(subprocess.check_output("ps h -e -o pid,min_flt,maj_flt", shell = True))[2:-1].split('\\n')
 
     pid = []
     min_flt = []
