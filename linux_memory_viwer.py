@@ -1,5 +1,7 @@
 import os
 import subprocess
+import pandas as pd
+
 
 meminfo = dict((i.split()[0].rstrip(':'),int(i.split()[1])) for i in open('/proc/meminfo').readlines())
 
@@ -24,17 +26,31 @@ memory_values(meminfo)
 
 pageFaults = subprocess.check_output('ps h -e -o pid,min_flt,maj_flt', shell = True)
 
+#print(pageFaults)
+
 def page_faults(pageFaults):
 	#Byte to String
-	pagesF = "".join(map(chr, pageFaults))
-	pagesF = page.split('\n')
+	#pagesF = "".join(map(chr, pageFaults))
+	pagesF = pageFaults.split('\n')
 
-	lst = []
-	for i in range(0, len(page)):
-	    lstAux1 = page[i].split()
-	    lstAux2 = []
-	    for j in range(0, len(lstAux1)):
-	        aux = int(lstAux1[j])
-	        lstAux2.append(aux)
-	    lst.append(lstAux2)
-	 
+	pid = []
+        min_flt = []
+        maj_flt = []
+	for i in range(0, len(pagesF)):
+	    lstAux1 = pagesF[i].split(' ')
+            lstAux1 = [item for item in lstAux1 if item != '']
+            if(lstAux1):
+                pid.append(lstAux1[0])
+                min_flt.append(lstAux1[1])
+                maj_flt.append(lstAux1[2])
+        proc_flt = pd.DataFrame().from_dict({'pid':pid,
+            'min_flt':min_flt, 'maj_flt':maj_flt})
+        print(proc_flt)
+
+page_faults(pageFaults)
+
+
+
+
+
+
