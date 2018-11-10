@@ -1,26 +1,33 @@
 import os
 import subprocess
 import dialog_error
+import matplotlib.pyplot as plt
+import matplotlib.backends.tkagg as tkagg
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 # Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
     import tkinter as tk
     from tkinter import ttk
 except ImportError:
-    import Tkinter as tk
-    import ttk
+    try:
+        import Tkinter as tk
+        import ttk
+    except ImportError:
+        print('Tkinter not installed!')
 
 try:
     import pandas as pd
 except ImportError:
     try:
         import pip
+        subprocess.call([sys.executable, "-m", "pip", "install", "pandas"])
     except ImportError:
         dialog_error('Import PIP')
 
 
 def memory_values():
-    meminfo = dict((i.split()[0].rstrip(':'),int(i.split()[1])) for i in open('/proc/meminfo').readlines())
+    meminfo = dict((i.split()[0].rstrip(':'),[int(i.split()[1])]) for i in open('/proc/meminfo').readlines())
     return pd.DataFrame().from_dict(meminfo)
 
 def page_faults():
@@ -33,14 +40,11 @@ def page_faults():
         lstAux1 = pagesF[i].split(' ')
         lstAux1 = [item for item in lstAux1 if item != '']
         if(lstAux1):
-            pid.append(lstAux1[0])
-            min_flt.append(lstAux1[1])
-            maj_flt.append(lstAux1[2])
+            pid.append(int(lstAux1[0]))
+            min_flt.append(int(lstAux1[1]))
+            maj_flt.append(int(lstAux1[2]))
     proc_flt = pd.DataFrame().from_dict({'pid':pid,'min_flt':min_flt, 'maj_flt':maj_flt})
     return proc_flt
-
-# print(page_faults(pageFaults))
-
 
 class Canvas(ttk.Frame, object):
     score_label={}
@@ -55,7 +59,6 @@ class Canvas(ttk.Frame, object):
         self.master.rowconfigure(0, weight=3)
         self.pack()
         self.create_widgets()
-        self.insert2listbox()
 
     def create_widgets(self):
         self.options = ttk.Notebook(self)
@@ -63,23 +66,30 @@ class Canvas(ttk.Frame, object):
         self.page_faults_frame = ttk.Frame()
         self.options.add(self.page_faults_frame, text='Page Faults')
 
+        self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
+        self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.listbox_pid = tk.Listbox(self.page_faults_frame)
-        self.listbox_pid.grid(column=1, row=1, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.maj_flt_label = tk.Label(self.page_faults_frame,text='Major Page Faults')
-        self.maj_flt_label.grid(column=3, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.min_flt_label = tk.Label(self.page_faults_frame,text='Minor Page Faults')
-        self.min_flt_label.grid(column=2, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
+        self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.min_flt_label = tk.Label(self.page_faults_frame,text=' Minor Page Faults ')
+        self.min_flt_label.grid(column=2, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
         
+        self.update_btn = tk.Button(self.page_faults_frame,text='Udate Active Process PID list',command=self.update_pids)
+        self.update_btn.grid(column=3, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
+
+
         self.mem_vals_frame = ttk.Frame()
         self.options.add(self.mem_vals_frame, text='Memory Values')
-        
+
+
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
         self.min_flt_frame = tk.Label(self.page_faults_frame)
-        self.min_flt_frame.grid(column=2, row=3, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.min_flt_frame.grid(column=2, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.maj_flt_frame = tk.Label(self.page_faults_frame)
-        self.maj_flt_frame.grid(column=3, row=3, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.maj_flt_frame.grid(column=3, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
         
         self.master.bind('<Control-c>', self.exit)
         self.master.bind('<Control-q>', self.exit)
@@ -87,10 +97,39 @@ class Canvas(ttk.Frame, object):
         self.master.bind('<Alt-F4>', self.exit)
         self.master.bind('<Escape>', self.exit)
 
+        self.insert2listbox()
+        # self.draw_figure()
+
     def insert2listbox(self):
         for row in self.df['pid']:
             self.listbox_pid.insert(tk.END,row)
         self.listbox_pid.bind('<<ListboxSelect>>', self.onselect)
+
+    def update_pids(self):
+        self.listbox_pid.delete(0,tk.END)
+        for row in self.df['pid']:
+            self.listbox_pid.insert(tk.END,row)
+
+    def draw_figure(self,loc=(20, 20)):
+        canvas = tk.Canvas(self.mem_vals_frame)
+        mem_vals_df = memory_values()
+        mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
+        mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
+        mem_vals_df
+        figure = plt.figure()
+        ax = mem_vals_df.plot(y=0,kind='pie',fig=figure)
+        ax.plot()
+        fca = FigureCanvasAgg(figure)
+        fca.draw()
+        figure_x, figure_y, figure_w, figure_h = figure.bbox.bounds
+        figure_w, figure_h = int(figure_w), int(figure_h)
+    
+        photo = tk.PhotoImage(master=canvas, width=figure_w, height=figure_h)
+
+        canvas.create_image(loc[0] + figure_w/2, loc[1] + figure_h/2, image=photo)
+
+        # Unfortunately, there's no accessor for the pointer to the native renderer
+        tkagg.blit(photo, fca.get_renderer()._renderer, colormode=2)
 
     def onselect(self,evt):
         # Note here that Tkinter passes an event object to onselect()
@@ -107,11 +146,6 @@ def main():
     root = tk.Tk()
     app = Canvas(master=root,title='Linux Memory Viwer')
     app.mainloop()
-
-    # ttk.Entry(mainframe, width=7, textvariable=feet).grid(column=2, row=1, sticky=(W, E)).focus()
-    # root.bind('<Return>', calculate) # on enter key pressed
-
-    # root.mainloop()
 
 if __name__ == "__main__":
     main()
