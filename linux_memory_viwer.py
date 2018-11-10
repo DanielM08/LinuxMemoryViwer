@@ -4,6 +4,7 @@ import dialog_error
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
+import numpy as np
 
 # Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
@@ -68,7 +69,7 @@ class Canvas(ttk.Frame, object):
 
         self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
         self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.listbox_pid = tk.Listbox(self.page_faults_frame,height=15)
+        self.listbox_pid = tk.Listbox(self.page_faults_frame,height=25)
         self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
         self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
@@ -79,7 +80,7 @@ class Canvas(ttk.Frame, object):
         self.update_btn.grid(column=3, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
 
 
-        self.mem_vals_frame = ttk.Frame()
+        self.mem_vals_frame = tk.Frame()
         self.options.add(self.mem_vals_frame, text='Memory Values')
 
 
@@ -111,21 +112,25 @@ class Canvas(ttk.Frame, object):
             self.listbox_pid.insert(tk.END,row)
 
     def draw_figure(self,loc=(20, 20)):
-        # mem_vals_df = memory_values()
-        # mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
-        # mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
-        mem_vals_df = page_faults()
+        mem_vals_df = memory_values()
+        mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
+        mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
+        # mem_vals_df = page_faults()
 
-        figure = plt.figure(figsize=(3,3))
-        mem_vals_df.plot()
-        
+        figure = plt.figure(figsize=(3,5), dpi=100)
+        # ax = mem_vals_df.plot(y=0,kind='pie',fig=figure)
+        # ax.plot()
+        plt.pie(mem_vals_df)
+
         canvas = FigureCanvasTkAgg(figure,master=self.mem_vals_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         
+        
         toolbar = NavigationToolbar2TkAgg(canvas, self.mem_vals_frame)
         toolbar.update()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        
 
 
     def onselect(self,evt):
