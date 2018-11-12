@@ -56,6 +56,8 @@ class Canvas(ttk.Frame, object):
     score_label={}
     score_value_label={}
     df=page_faults()
+    figure=None
+    cavas=None
 
     def __init__(self, master=None, title='Canvas',df=page_faults()):
         super(Canvas, self).__init__(master, padding="12 12 12 12")
@@ -63,6 +65,7 @@ class Canvas(ttk.Frame, object):
         self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.master.columnconfigure(0, weight=3)
         self.master.rowconfigure(0, weight=3)
+        self.figure = plt.figure(figsize=(3,5), dpi=100)
         self.pack()
         self.create_widgets()
 
@@ -88,6 +91,16 @@ class Canvas(ttk.Frame, object):
         self.mem_vals_frame = tk.Frame()
         self.options.add(self.mem_vals_frame, text='Memory Values')
 
+        self.update_figure_btn = tk.Button(self.mem_vals_frame,text='Udate',command=self.draw_figure)
+        self.update_figure_btn.grid(column=1, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
+
+        self.canvas = FigureCanvasTkAgg(self.figure,master=self.mem_vals_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(column=1, row=1, rowspan=10, columnspan=10, sticky=(tk.N, tk.W, tk.E, tk.S))
+        
+        # self.toolbar = NavigationToolbar2TkAgg(self.canvas, self.mem_vals_frame)
+        # self.toolbar.update()
+        # self.toolbar.get_tk_widget().grid(column=1, row=11, rowspan=2, sticky=(tk.N, tk.W, tk.E, tk.S))
 
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
@@ -116,25 +129,34 @@ class Canvas(ttk.Frame, object):
         for row in self.df['pid']:
             self.listbox_pid.insert(tk.END,row)
 
-    def draw_figure(self,loc=(20, 20)):
+    def calculate_values(self):
         mem_vals_df = memory_values()
+        print(mem_vals_df.transpose())
         mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
-        mem_vals_df = mem_vals_df.loc[:,['MemUsed','MemFree']].transpose()
-        # mem_vals_df = page_faults()
+        mem_vals_df['SwapUsed'] = int(mem_vals_df['SwapTotal']) - int(mem_vals_df['SwapFree'])
+        df_aux = {'Memory':{},'Swap':{},'Cache':{}}
+        for col in mem_vals_df.columns:
+            for key in df_aux.keys():
+                if key[:3] in col:
+                    df_aux[key][col] = mem_vals_df[col][0]
+        for key in df_aux.keys():
+            df_aux[key] = pd.DataFrame().from_dict(df_aux[key],orient='index',columns=['value']).reset_index()
+        return pd.concat(df_aux)
 
-        figure = plt.figure(figsize=(3,5), dpi=100)
-        # ax = mem_vals_df.plot(y=0,kind='pie',fig=figure)
-        # ax.plot()
-        plt.pie(mem_vals_df)
+    def draw_figure(self,loc=(20, 20)):
+        df_aux = self.calculate_values()
+        plt.bar(df_aux['index'],df_aux['value'])
+        plt.xticks(rotation=90)
+        plt.subplots_adjust(left=0.2,bottom=0.22)
 
-        canvas = FigureCanvasTkAgg(figure,master=self.mem_vals_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        # canvas = FigureCanvasTkAgg(figure,master=self.mem_vals_frame)
+        self.canvas.draw()
+        # self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         
         
-        toolbar = NavigationToolbar2TkAgg(canvas, self.mem_vals_frame)
-        toolbar.update()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        # toolbar = NavigationToolbar2TkAgg(canvas, self.mem_vals_frame)
+        # self.toolbar.update()
+        # self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         
 
 
