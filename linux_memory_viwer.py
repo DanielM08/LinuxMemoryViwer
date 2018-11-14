@@ -6,6 +6,16 @@ import time
 
 # Checking versions and installation of main packages used here
 try:
+    import tkinter as tk
+    from tkinter import ttk
+except ImportError:
+    try:
+        import Tkinter as tk
+        import ttk
+    except ImportError:
+        print('Tkinter or ttk not installed! Please see README.md for futher informations')
+        sys.exit()
+try:
     import numpy as np
 except ImportError:
     print('Install NumPy! Please see README.md for futher informations')
@@ -20,18 +30,6 @@ except ImportError:
     except ImportError:
         print('Install MatPlotLib Python! Please see README.md for futher informations')
         sys.exit()
-try:
-    import tkinter as tk
-    from tkinter import ttk
-except ImportError:
-    try:
-        import Tkinter as tk
-        import ttk
-    except ImportError:
-        print('Tkinter or ttk not installed! Please see README.md for futher informations')
-        sys.exit()
-
-# Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
     import pandas as pd
 except ImportError:
