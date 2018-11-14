@@ -5,9 +5,6 @@ import threading
 import time
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
 try:
     ## For Python <= 2.7
     import tkinter as tk
@@ -18,6 +15,9 @@ except ImportError:
     import Tkinter as tk
     import ttk
     from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 
 def memory_values():
     '''
@@ -97,6 +97,7 @@ class Canvas(ttk.Frame, object):
         self.page_faults_frame_tv = ttk.Frame()
         self.options.add(self.page_faults_frame_tv, text='Page Faults TV')
 
+        ## Page fault table view
         self.pf_tree = ttk.Treeview(self.page_faults_frame_tv, columns=('pid', 'maj_flt', 'min_flt'))
         self.pf_tree.heading('pid',text='Active Process PID')
         self.pf_tree.heading('maj_flt',text='Major Page Faults')
@@ -111,10 +112,12 @@ class Canvas(ttk.Frame, object):
         self.mem_vals_frame = tk.Frame()
         self.options.add(self.mem_vals_frame, text='Memory Values')
 
+        ## Canvas for memory info bar chart
         self.canvas = FigureCanvasTkAgg(self.figure,master=self.mem_vals_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         
+        ## Toolbar with tools for adjusting the bar chart
         self.toolbar = NavigationToolbar2TkAgg(self.canvas, self.mem_vals_frame)
         self.toolbar.update()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -122,6 +125,7 @@ class Canvas(ttk.Frame, object):
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
+        ## Shortcuts for exit
         self.master.bind('<Control-c>', self.exit)
         self.master.bind('<Control-q>', self.exit)
         self.master.bind('<Control-w>', self.exit)
@@ -129,6 +133,9 @@ class Canvas(ttk.Frame, object):
         self.master.bind('<Escape>', self.exit)
 
     def fill_tree(self):
+        '''
+        Filling the tree with infos and updating data due every 0.5s
+        '''
         while(self.is_thread):
             self.df = self.df.append(page_faults(),ignore_index=True)
             self.df.drop_duplicates('pid',inplace=True,keep='last')
@@ -147,6 +154,9 @@ class Canvas(ttk.Frame, object):
             time.sleep(0.5)
 
     def calculate_values(self):
+        '''
+        Auxiliar class method for draw_figure
+        '''
         mem_vals_df = memory_values()
         mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
         mem_vals_df['SwapUsed'] = int(mem_vals_df['SwapTotal']) - int(mem_vals_df['SwapFree'])
@@ -160,6 +170,9 @@ class Canvas(ttk.Frame, object):
         return pd.concat(df_aux)
 
     def draw_figure(self,loc=(20, 20)):
+        '''
+        Create and update the bar chart
+        '''
         while(self.is_thread):
             self.figure.clear()
             df_aux = self.calculate_values()
@@ -169,17 +182,9 @@ class Canvas(ttk.Frame, object):
             self.canvas.draw()
 
             time.sleep(0.5)
-        
-
-
-    def onselect(self,evt):
-        w = evt.widget
-        index = int(w.curselection()[0])
-        value = w.get(index)
-        self.min_flt_frame.config(text=self.df['min_flt'].iloc[index])
-        self.maj_flt_frame.config(text=self.df['maj_flt'].iloc[index])
 
     def exit(self,*args):
+        ## New exit
         try:
             self.is_thread=False
             self.master.quit()
