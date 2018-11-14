@@ -3,50 +3,21 @@ import sys
 import subprocess
 import threading
 import time
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# Checking versions and installation of main packages used here
 try:
+    ## For Python <= 2.7
     import tkinter as tk
     from tkinter import ttk
-except ImportError:
-    try:
-        import Tkinter as tk
-        import ttk
-    except ImportError:
-        print('Tkinter or ttk not installed! Please see README.md for futher informations')
-        sys.exit()
-try:
-    import numpy as np
-except ImportError:
-    print('Install NumPy! Please see README.md for futher informations')
-    sys.exit()
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
     from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk as NavigationToolbar2TkAgg
 except ImportError:
-    try:
-        from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
-    except ImportError:
-        print('Install MatPlotLib Python! Please see README.md for futher informations')
-        sys.exit()
-try:
-    import pandas as pd
-except ImportError:
-    print('Install Pandas! Please see README.md for futher informations')
-    sys.exit()
-
-def treeview_sort_column(tv, col, reverse):
-    l = [(tv.set(k, col), k) for k in tv.get_children('')]
-    l.sort(reverse=reverse)
-
-    # rearrange items in sorted positions
-    for index, (val, k) in enumerate(l):
-        tv.move(k, '', index)
-
-    # reverse sort next time
-    tv.heading(col, command=lambda: \
-               treeview_sort_column(tv, col, not reverse))
+    ## For Python > 2.7
+    import Tkinter as tk
+    import ttk
+    from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
 
 def memory_values():
     '''
@@ -106,16 +77,13 @@ class Canvas(ttk.Frame, object):
         self.pack()
         self.create_widgets()
 
+
+        ## Creating and starting threads for GUI informations update
         self.draw_thread=threading.Thread(target=self.draw_figure)
         self.draw_thread.start()
 
-        # self.pids_thread=threading.Thread(target=self.update_pids)
-        # self.pids_thread.start()
-
         self.pids_thread=threading.Thread(target=self.fill_tree)
         self.pids_thread.start()
-
-
 
     def create_widgets(self):
         '''
@@ -139,34 +107,9 @@ class Canvas(ttk.Frame, object):
         self.pf_tree['show']='headings'
         self.pf_tree.grid(column=1,row=1,rowspan=22,sticky=(tk.N,tk.W,tk.E,tk.S))
 
-        ## Page Faults Tab panel
-        # self.page_faults_frame = ttk.Frame()
-        # self.options.add(self.page_faults_frame, text='Page Faults')
-
-        # ## Items on Page Faults Tab panel
-        # self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
-        # self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        # self.listbox_pid = tk.Listbox(self.page_faults_frame,height=25)
-        # self.listbox_scroll = tk.Scrollbar(self.listbox_pid,orient=tk.VERTICAL)
-        # self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
-        # self.listbox_pid.config(yscrollcommand=self.listbox_scroll.set)
-        # self.listbox_scroll.config(command=self.listbox_pid.yview)
-        # self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
-        # self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        # self.min_flt_label = tk.Label(self.page_faults_frame,text=' Minor Page Faults ')
-        # self.min_flt_label.grid(column=2, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        
-        ## There is no need for such a thing
-        # self.update_btn = tk.Button(self.page_faults_frame,text='Udate Active Process PID list',command=self.update_pids)
-        # self.update_btn.grid(column=3, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
-
         ## Memory page/panel
         self.mem_vals_frame = tk.Frame()
         self.options.add(self.mem_vals_frame, text='Memory Values')
-
-        ## There's no need for this button once a thread is setted for this job
-        # self.update_figure_btn = tk.Button(self.mem_vals_frame,text='Udate',command=self.draw_figure)
-        # self.update_figure_btn.grid(column=1, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
 
         self.canvas = FigureCanvasTkAgg(self.figure,master=self.mem_vals_frame)
         self.canvas.draw()
@@ -179,20 +122,11 @@ class Canvas(ttk.Frame, object):
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
-        ## There is no need for such a thing
-        # self.min_flt_frame = tk.Label(self.page_faults_frame)
-        # self.min_flt_frame.grid(column=2, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
-        # self.maj_flt_frame = tk.Label(self.page_faults_frame)
-        # self.maj_flt_frame.grid(column=3, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
-        
         self.master.bind('<Control-c>', self.exit)
         self.master.bind('<Control-q>', self.exit)
         self.master.bind('<Control-w>', self.exit)
         self.master.bind('<Alt-F4>', self.exit)
         self.master.bind('<Escape>', self.exit)
-
-        ## There is no need for such a thing
-        # self.insert2listbox()
 
     def fill_tree(self):
         while(self.is_thread):
@@ -212,28 +146,8 @@ class Canvas(ttk.Frame, object):
             self.pf_tree.config(height=min(25,self.df.shape[0]))
             time.sleep(0.5)
 
-
-    ## Doesn't need this anymore
-    # def insert2listbox(self):
-    #     for row in self.df['pid']:
-    #         self.listbox_pid.insert(tk.END,row)
-    #     self.listbox_pid.bind('<<ListboxSelect>>', self.onselect)
-
-    def update_pids(self):
-        print(self.listbox_pid)
-        while(self.is_thread):
-            self.df = page_faults()
-            self.listbox_pid.delete(0,tk.END)
-            # self.listbox_pid.update_idletasks()
-            for row in self.df['pid']:
-                self.listbox_pid.insert(tk.END,row)
-            # self.listbox_pid.update_idletasks()
-            
-            time.sleep(1)
-
     def calculate_values(self):
         mem_vals_df = memory_values()
-        # print(mem_vals_df.transpose())
         mem_vals_df['MemUsed'] = int(mem_vals_df['MemTotal']) - int(mem_vals_df['MemFree'])
         mem_vals_df['SwapUsed'] = int(mem_vals_df['SwapTotal']) - int(mem_vals_df['SwapFree'])
         df_aux = {'Memory':{},'Swap':{},'Cache':{}}
@@ -259,7 +173,6 @@ class Canvas(ttk.Frame, object):
 
 
     def onselect(self,evt):
-        # Note here that Tkinter passes an event object to onselect()
         w = evt.widget
         index = int(w.curselection()[0])
         value = w.get(index)
