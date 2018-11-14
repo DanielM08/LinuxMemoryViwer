@@ -37,6 +37,17 @@ try:
 except ImportError:
     print('Install Pandas! Please see README.md for futher informations')
 
+def treeview_sort_column(tv, col, reverse):
+    l = [(tv.set(k, col), k) for k in tv.get_children('')]
+    l.sort(reverse=reverse)
+
+    # rearrange items in sorted positions
+    for index, (val, k) in enumerate(l):
+        tv.move(k, '', index)
+
+    # reverse sort next time
+    tv.heading(col, command=lambda: \
+               treeview_sort_column(tv, col, not reverse))
 
 def memory_values():
     '''
@@ -65,6 +76,7 @@ def page_faults():
             min_flt.append(int(lstAux1[1]))
             maj_flt.append(int(lstAux1[2]))
     proc_flt = pd.DataFrame().from_dict({'pid':pid,'min_flt':min_flt, 'maj_flt':maj_flt})
+    proc_flt = proc_flt[(proc_flt['min_flt']!=0) | (proc_flt['maj_flt']!=0)]
     return proc_flt
 
 class Canvas(ttk.Frame, object):
@@ -78,7 +90,7 @@ class Canvas(ttk.Frame, object):
     df=page_faults()
     figure=None
     cavas=None
-    is_draw_thread=False
+    is_thread=False
 
     def __init__(self, master=None, title='Canvas',df=page_faults()):
         '''
@@ -91,12 +103,20 @@ class Canvas(ttk.Frame, object):
         self.master.columnconfigure(0, weight=3)
         self.master.rowconfigure(0, weight=3)
         self.figure = plt.figure(figsize=(3,5), dpi=100)
-        self.is_draw_thread=True
+        self.is_thread=True
         self.pack()
         self.create_widgets()
 
         self.draw_thread=threading.Thread(target=self.draw_figure)
         self.draw_thread.start()
+
+        # self.pids_thread=threading.Thread(target=self.update_pids)
+        # self.pids_thread.start()
+
+        self.pids_thread=threading.Thread(target=self.fill_tree)
+        self.pids_thread.start()
+
+
 
     def create_widgets(self):
         '''
@@ -106,22 +126,40 @@ class Canvas(ttk.Frame, object):
         ## Tab responsible for widget
         self.options = ttk.Notebook(self)
         
-        ## Page Faults Tab panel
-        self.page_faults_frame = ttk.Frame()
-        self.options.add(self.page_faults_frame, text='Page Faults')
+        ## Page Faults Tab panel with tree view
+        self.page_faults_frame_tv = ttk.Frame()
+        self.options.add(self.page_faults_frame_tv, text='Page Faults TV')
 
-        ## Items on Page Faults Tab panel
-        self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
-        self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.listbox_pid = tk.Listbox(self.page_faults_frame,height=25)
-        self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
-        self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.min_flt_label = tk.Label(self.page_faults_frame,text=' Minor Page Faults ')
-        self.min_flt_label.grid(column=2, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.pf_tree = ttk.Treeview(self.page_faults_frame_tv, columns=('pid', 'maj_flt', 'min_flt'))
+        self.pf_tree.heading('pid',text='Active Process PID')
+        self.pf_tree.heading('maj_flt',text='Major Page Faults')
+        self.pf_tree.heading('min_flt',text='Minor Page Faults')
+        self.pf_tree.column('pid',anchor=tk.CENTER)
+        self.pf_tree.column('maj_flt',anchor=tk.CENTER)
+        self.pf_tree.column('min_flt',anchor=tk.CENTER)
+        self.pf_tree['show']='headings'
+        self.pf_tree.grid(column=1,row=1,rowspan=22,sticky=(tk.N,tk.W,tk.E,tk.S))
+
+        ## Page Faults Tab panel
+        # self.page_faults_frame = ttk.Frame()
+        # self.options.add(self.page_faults_frame, text='Page Faults')
+
+        # ## Items on Page Faults Tab panel
+        # self.pid_label = tk.Label(self.page_faults_frame,text='Active Process PID')
+        # self.pid_label.grid(column=1, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
+        # self.listbox_pid = tk.Listbox(self.page_faults_frame,height=25)
+        # self.listbox_scroll = tk.Scrollbar(self.listbox_pid,orient=tk.VERTICAL)
+        # self.listbox_pid.grid(column=1, row=2, rowspan=12, sticky=(tk.N, tk.W, tk.E, tk.S))
+        # self.listbox_pid.config(yscrollcommand=self.listbox_scroll.set)
+        # self.listbox_scroll.config(command=self.listbox_pid.yview)
+        # self.maj_flt_label = tk.Label(self.page_faults_frame,text=' Major Page Faults ')
+        # self.maj_flt_label.grid(column=3, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
+        # self.min_flt_label = tk.Label(self.page_faults_frame,text=' Minor Page Faults ')
+        # self.min_flt_label.grid(column=2, row=1, sticky=(tk.N, tk.W, tk.E, tk.S))
         
-        self.update_btn = tk.Button(self.page_faults_frame,text='Udate Active Process PID list',command=self.update_pids)
-        self.update_btn.grid(column=3, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
+        ## There is no need for such a thing
+        # self.update_btn = tk.Button(self.page_faults_frame,text='Udate Active Process PID list',command=self.update_pids)
+        # self.update_btn.grid(column=3, row=13, sticky=(tk.N, tk.W, tk.E, tk.S))
 
         ## Memory page/panel
         self.mem_vals_frame = tk.Frame()
@@ -142,10 +180,11 @@ class Canvas(ttk.Frame, object):
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
-        self.min_flt_frame = tk.Label(self.page_faults_frame)
-        self.min_flt_frame.grid(column=2, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
-        self.maj_flt_frame = tk.Label(self.page_faults_frame)
-        self.maj_flt_frame.grid(column=3, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
+        ## There is no need for such a thing
+        # self.min_flt_frame = tk.Label(self.page_faults_frame)
+        # self.min_flt_frame.grid(column=2, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
+        # self.maj_flt_frame = tk.Label(self.page_faults_frame)
+        # self.maj_flt_frame.grid(column=3, row=2, sticky=(tk.N, tk.W, tk.E, tk.S))
         
         self.master.bind('<Control-c>', self.exit)
         self.master.bind('<Control-q>', self.exit)
@@ -153,17 +192,45 @@ class Canvas(ttk.Frame, object):
         self.master.bind('<Alt-F4>', self.exit)
         self.master.bind('<Escape>', self.exit)
 
-        self.insert2listbox()
+        ## There is no need for such a thing
+        # self.insert2listbox()
 
-    def insert2listbox(self):
-        for row in self.df['pid']:
-            self.listbox_pid.insert(tk.END,row)
-        self.listbox_pid.bind('<<ListboxSelect>>', self.onselect)
+    def fill_tree(self):
+        while(self.is_thread):
+            self.df = self.df.append(page_faults(),ignore_index=True)
+            self.df.drop_duplicates('pid',inplace=True,keep='last')
+            self.childs=self.pf_tree.get_children()
+            self.df.index=self.df.index.map(str)
+            self.df.sort_values('pid',inplace=True)
+            self.children={}
+            for child in self.childs:
+                self.children[self.pf_tree.item(child)['values'][0]]=child
+            for index,row in self.df.iterrows():
+                if row['pid'] not in self.children.keys():
+                    self.pf_tree.insert('','end',values=(int(row['pid']),row['min_flt'],row['maj_flt']))
+                else:
+                    self.pf_tree.item(self.children[int(row['pid'])],values=(int(row['pid']),row['min_flt'],row['maj_flt']))
+            self.pf_tree.config(height=min(25,self.df.shape[0]))
+            time.sleep(0.5)
+
+
+    ## Doesn't need this anymore
+    # def insert2listbox(self):
+    #     for row in self.df['pid']:
+    #         self.listbox_pid.insert(tk.END,row)
+    #     self.listbox_pid.bind('<<ListboxSelect>>', self.onselect)
 
     def update_pids(self):
-        self.listbox_pid.delete(0,tk.END)
-        for row in self.df['pid']:
-            self.listbox_pid.insert(tk.END,row)
+        print(self.listbox_pid)
+        while(self.is_thread):
+            self.df = page_faults()
+            self.listbox_pid.delete(0,tk.END)
+            # self.listbox_pid.update_idletasks()
+            for row in self.df['pid']:
+                self.listbox_pid.insert(tk.END,row)
+            # self.listbox_pid.update_idletasks()
+            
+            time.sleep(1)
 
     def calculate_values(self):
         mem_vals_df = memory_values()
@@ -180,7 +247,7 @@ class Canvas(ttk.Frame, object):
         return pd.concat(df_aux)
 
     def draw_figure(self,loc=(20, 20)):
-        while(self.is_draw_thread):
+        while(self.is_thread):
             self.figure.clear()
             df_aux = self.calculate_values()
             plt.bar(df_aux['index'],df_aux['value'])
@@ -201,9 +268,12 @@ class Canvas(ttk.Frame, object):
         self.maj_flt_frame.config(text=self.df['maj_flt'].iloc[index])
 
     def exit(self,*args):
-        self.is_draw_thread=False
-        self.master.quit()
-        self.master.destroy()
+        try:
+            self.is_thread=False
+            self.master.quit()
+            self.master.destroy()
+        except:
+            sys.exit()
 
 def main():
     root = tk.Tk()
