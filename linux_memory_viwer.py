@@ -9,6 +9,7 @@ try:
     import numpy as np
 except ImportError:
     print('Install NumPy! Please see README.md for futher informations')
+    sys.exit()
 try:
     import matplotlib.pyplot as plt
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -18,6 +19,7 @@ except ImportError:
         from matplotlib.backends.backend_tkagg import NavigationToolbar2TkAgg
     except ImportError:
         print('Install MatPlotLib Python! Please see README.md for futher informations')
+        sys.exit()
 try:
     import tkinter as tk
     from tkinter import ttk
@@ -27,15 +29,14 @@ except ImportError:
         import ttk
     except ImportError:
         print('Tkinter or ttk not installed! Please see README.md for futher informations')
-try:
-    import dialog_error
-except ImportError:
-    print('Put dialog_error on same directory as this script! Please go to the README.md for futher informations.')
+        sys.exit()
+
 # Thanks to https://stackoverflow.com/questions/12332975/installing-python-module-within-code
 try:
     import pandas as pd
 except ImportError:
     print('Install Pandas! Please see README.md for futher informations')
+    sys.exit()
 
 def treeview_sort_column(tv, col, reverse):
     l = [(tv.set(k, col), k) for k in tv.get_children('')]
