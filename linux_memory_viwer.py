@@ -166,7 +166,11 @@ class Canvas(ttk.Frame, object):
                 if key[:3] in col:
                     df_aux[key][col] = mem_vals_df[col][0]
         for key in df_aux.keys():
-            df_aux[key] = pd.DataFrame().from_dict(df_aux[key],orient='index',columns=['value']).reset_index()
+            try:
+                df_aux[key] = pd.DataFrame().from_dict(df_aux[key],orient='index',columns=['value']).reset_index()
+            except:
+                df_aux[key] = pd.DataFrame().from_dict(df_aux[key],orient='index').reset_index()
+                df_aux[key].columns=['index','value']
         return pd.concat(df_aux)
 
     def draw_figure(self,loc=(20, 20)):
@@ -176,7 +180,12 @@ class Canvas(ttk.Frame, object):
         while(self.is_thread):
             self.figure.clear()
             df_aux = self.calculate_values()
-            plt.bar(df_aux['index'],df_aux['value'])
+            try:
+                plt.bar(df_aux['index'],df_aux['value'])
+            except:
+                x=np.arange(0.25, len(df_aux['index']), step=1)
+                plt.bar(x,df_aux['value'])
+                plt.xticks(x,df_aux['index']);
             plt.xticks(rotation=90)
             plt.subplots_adjust(left=0.2,bottom=0.22)
             self.canvas.draw()
